@@ -1,47 +1,20 @@
-from pysm import State, StateMachine, Event
 import time
 import uasyncio as asyncio
-
-Phase1 = State('Phase1')
-Phase2 = State('Phase2')
-Phase3 = State('Phase3')
-Phase4 = State('Phase4')
-Phase5 = State('Phase5')
+import settings
+import network
+from statemachine import atStateMachine
+from pysm import Event
 
 
-sm = StateMachine('sm')
-sm.add_state(Phase1, initial=True)
-sm.add_state(Phase2)
-sm.add_state(Phase3)
-sm.add_state(Phase4)
-sm.add_state(Phase5)
 
-sm.add_transition(Phase1, Phase2, events=['ToPhase2'])
-sm.add_transition(Phase2, Phase3, events=['ToPhase3'])
-sm.add_transition(Phase3, Phase4, events=['ToPhase4'])
-sm.add_transition(Phase4, Phase5, events=['ToPhase5'])
-sm.add_transition(Phase5, Phase1, events=['ToPhase1'])
-
-def on_enter(state, event):
-    print('')
-    print('Enter state {0}'.format(state.name))
-
-def on_exit(state, event):
-    print('Exit state {0}'.format(state.name))
-
-# Attach enter/exit handlers
-states = [Phase1, Phase2, Phase3, Phase4]
-for state in states:
-    state.handlers = {'enter': on_enter, 'exit': on_exit}
-
-sm.initialize()
-
-def doPhase1():
-    print('Reading config.')
+def doBaseConfig():
+    # decide where to get time
+    if settings.main.get('RTC'):
+        print('Reading the time from the DS3231')
+        time.sleep(1)
+        print('Set internal RTC')
     time.sleep(1)
-    print('If RTC: Read & set time')
-    time.sleep(1)
-    sm.dispatch(Event('ToPhase2'))
+    state.machine.dispatch(Event('ToPhase2'))
 
 async def doPhase2():
     res = None
@@ -52,12 +25,10 @@ async def doPhase2():
         print('Timeout')  # With the default times, cancellation occurs first
     except asyncio.CancelledError:
         print('Cancelled')    
-    sm.dispatch(Event('ToPhase3'))
+    state.machine.dispatch(Event('ToPhase3'))
 
 async def Wan():
-    print('Connectin WAN (Wifi, LoRa...)')
-    await asyncio.sleep(10)
-    print('WAN connected.')
+    pass
 
 async def MeasureBus0():
     print('Measuring on Bus0')
@@ -77,7 +48,7 @@ async def MeasureBus2():
 def doPhase3():
     print('Data crunching.')
     time.sleep(2)
-    sm.dispatch(Event('ToPhase4'))
+    state.machine.dispatch(Event('ToPhase4'))
 
 async def SendZeData():
     print('Connecting to server...')
@@ -103,29 +74,51 @@ async def doPhase4():
         print('Timeout')  # With the default times, cancellation occurs first
     except asyncio.CancelledError:
         print('Cancelled')    
-    sm.dispatch(Event('ToPhase5'))
+    state.machine.dispatch(Event('ToPhase5'))
 
 def doPhase5():
     print('Deciding how to sleep.')
     time.sleep(2)
-    sm.dispatch(Event('ToPhase1'))
+    state.machine.dispatch(Event('ToBaseConfig'))
 
+def do_connect():
+    import network
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print('connecting to network...')
+        wlan.connect('Zippen 24','Boyzoneanker24')
+        while not wlan.isconnected():
+            pass
+    print('network config:', wlan.ifconfig())
 
 
 if __name__ == '__main__':
 
+    #do_connect()
+
+    # create the statemachine
+    state = atStateMachine()
+
+    # Attach enter/exit handlers - if you want different handlers for a state you need to overwrite them
+    for machinestate in state.machine.states:
+        machinestate.handlers = {'enter': state.on_enter, 'exit': state.on_exit}
+
     while True:
-        if sm.state == None:
-            doPhase1()
-        if sm.state == Phase1:
-            doPhase1()
-        elif sm.state == Phase2:
+        if state.machine.state == None:
+            doBaseConfig()
+        if state.machine.state == state.BaseConfig:
+            doBaseConfig()
+        elif state.machine.state == state.Phase2:
             asyncio.run(doPhase2())
-        elif sm.state == Phase3:
+        elif state.machine.state == state.Phase3:
             doPhase3()
-        elif sm.state == Phase4:
+        elif state.machine.state == state.Phase4:
             asyncio.run(doPhase4())
-        elif sm.state == Phase5:
+        elif state.machine.state == state.Phase5:
             doPhase5()
 
 
+ 
+
+ 
