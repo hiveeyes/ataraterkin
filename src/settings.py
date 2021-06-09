@@ -1,7 +1,7 @@
 """Datalogger settings"""
 
-# General settings.
-main = {
+# settings concerning time & sleeping
+time = {
 
     # these three options are logically exclusive but if you insist: shutoff > deepsleep > lightsleep
     # if all three are false we are in continous mode
@@ -13,7 +13,12 @@ main = {
     'lightsleep': False,
 
     # RTC available
-    'RTC': False,
+    'RTC': {
+            'type': 'DS3231',
+            'bus': 'i2c0',
+            'enabled': True,
+        },
+
     # get time through NTP
     'NTP': False,
 
@@ -41,16 +46,18 @@ main = {
         'winter_start' : 10,
         'winter_end' : 2,
     },
+}
 
+# all interfaces, bus or not
+bus = {
 
-    # Configure logging.
-    'logging': {
-
-        # Enable or disable logging completely.
+    # i2c bus
+    'i2c0':
+        {
+        'type': 'i2c',
+        'soft_i2c': True, # uPy has 'soft' and 'hard' i2c
         'enabled': True,
-
-        # Log configuration settings at system startup.
-        'configuration': True,
-    },
-
+        'pin_sda': 21,
+        'pin_scl': 22,
+        },
 }

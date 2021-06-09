@@ -102,6 +102,15 @@ async def ataraterkin():
     for machinestate in state.machine.states:
         machinestate.handlers = {'enter': state.on_enter, 'exit': state.on_exit}
 
+    #do_connect()
+
+    # create the statemachine
+    state = atStateMachine()
+
+    # Attach enter/exit handlers - if you want different handlers for a state you need to overwrite them
+    for machinestate in state.machine.states:
+        machinestate.handlers = {'enter': state.on_enter, 'exit': state.on_exit}
+
     while True:
         if state.machine.state == None:
             BusAndTime()

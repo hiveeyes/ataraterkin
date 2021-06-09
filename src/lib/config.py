@@ -7,7 +7,11 @@ config['server'] = '192.168.0.14'  # Change to suit
 
 # Not needed if you're only using ESP8266
 config['ssid'] = 'Zippen 24'
+<<<<<<< HEAD
 config['wifi_pw'] = 'Boyzoneanker24'
+=======
+config['wifi_pw'] = '{redacted}'
+>>>>>>> 126bd59cf62af81d0302bedce10ff30c873ce722
 
 # For demos ensure the same calling convention for LED's on all platforms.
 # ESP8266 Feather Huzzah reference board has active low LED's on pins 0 and 2.
