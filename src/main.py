@@ -23,10 +23,17 @@ def BusAndTime():
                 DS3231 = DS3231(busses.i2c1)
             else:
                 raise Exception
+        (year,month,day,dotw,hour,minute,second) = DS3231.getDateTime() # get the current time
+        print('Date: {}.{}.{}, Time: {}h {}m {}s'.format(day,month,year,hour,minute,second))
+        from machine import RTC
+        rtc = RTC() # create RTC
+        if year < 2001:
+            year = 2001 # sanity check, as of mpy 1.12 year must be >= 2001
+        print('Setting internal RTC')
+        rtc.init((year,month,day,dotw,hour,minute,second,0)) # set time
+        state.machine.dispatch(Event('ToWifiMeasure'))
     except:
         print('Fault reading RTC in settings.py')
-
-    state.machine.dispatch(Event('ToWifiMeasure'))
 
 async def WifiAndMeasure():
     res = None

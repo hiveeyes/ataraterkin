@@ -55,9 +55,9 @@ bus = {
     'i2c0':
         {
         'type': 'i2c',
-        'soft_i2c': True, # uPy has 'soft' and 'hard' i2c
+        'soft_i2c': False, # uPy has 'soft' and 'hard' i2c
         'enabled': True,
-        'pin_sda': 21,
-        'pin_scl': 22,
+        'pin_sda': 19,
+        'pin_scl': 18,
         },
 }
