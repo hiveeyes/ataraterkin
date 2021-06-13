@@ -34,8 +34,22 @@ async def WifiAndMeasure():
     state.machine.dispatch(Event('ToPhase3'))
 
 async def Wan():
-    print('Wan')
 
+    try:
+        if settings.networking['wifi']['enabled']:
+            import network
+            wlan = network.WLAN(network.STA_IF)
+            wlan.active(True)
+            if not wlan.isconnected():
+                print('connecting to network...')
+                wlan.connect(settings.networking['wifi']['ssid'], settings.networking['wifi']['password'])
+                while not wlan.isconnected():
+                    print('waiting for connection...')
+                    await asyncio.sleep(1)
+            print('network config:', wlan.ifconfig())
+    except:
+        print('connection to wifi failed')
+        
 async def MeasureBus0():
     print('Measuring on Bus0')
     await asyncio.sleep(1)

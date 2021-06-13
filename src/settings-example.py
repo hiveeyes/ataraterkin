@@ -61,3 +61,15 @@ bus = {
         'pin_scl': 18,
         },
 }
+
+# networking configuration
+networking = {
+    'wifi': {
+
+        # Enable/disable WiFi
+        'enabled': True,
+        'ssid': 'SSID', 
+        'password': 'PASSWORD', 
+        'timeout': 15.0,
+    },
+}
