@@ -4,6 +4,9 @@ import settings
 import network
 from statemachine import atStateMachine
 from pysm import Event
+from measurements import atMeasurements
+
+measurements = atMeasurements()
 
 
 def BusAndTime():
@@ -24,7 +27,13 @@ def BusAndTime():
 
 async def WifiAndMeasure():
     res = None
-    tasks = [Wan(), MeasureBus0(), MeasureBus1(), MeasureBus2()]
+    tasks = [Wan()] # for now always connect to Wifi but this is not mandatory
+
+    for sensor in settings.sensors:
+        if sensor == 'DS3231':
+            measurements.IntTemperature = extRTC.getTemperature()
+            print('Internal Temperature: {}°C'.format(measurements.IntTemperature))
+
     try:
         res = await asyncio.gather(*tasks, return_exceptions=True)
     except asyncio.TimeoutError:  # These only happen if return_exceptions is False
@@ -49,7 +58,7 @@ async def Wan():
             print('network config:', wlan.ifconfig())
     except:
         print('connection to wifi failed')
-        
+
 async def MeasureBus0():
     print('Measuring on Bus0')
     await asyncio.sleep(1)

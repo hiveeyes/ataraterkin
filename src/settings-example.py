@@ -73,3 +73,14 @@ networking = {
         'timeout': 15.0,
     },
 }
+
+# sensor configuration
+sensors = {
+    'DS3231': 
+        {
+        'type': 'temperature',
+        'enabled': True,
+        'bus': 'i2c0',
+    }
+
+}
