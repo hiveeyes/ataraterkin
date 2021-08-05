@@ -5,27 +5,27 @@ class atStateMachine():
     def __init__(self) -> None:
         # define states - in '' is the states name string
         self.BusAndTime = State('Create bus and set time')
-        self.WifiAndMeasure = State('Connect Wifi and measure')
-        self.Phase3 = State('Phase3')
-        self.Phase4 = State('Phase4')
-        self.Phase5 = State('Phase5')
+        self.ConnectAndMeasure = State('Connect Wifi and measure')
+        self.DataManipulation = State('Manipulate measurement data')
+        self.Sending = State('Send data upstream')
+        self.SleepingDecision = State('What to do until next measurement')
 
         # define the state machine
         self.machine = StateMachine('sm')
 
         # ad states to the machine - exactly one needs to be initial
         self.machine.add_state(self.BusAndTime, initial=True)
-        self.machine.add_state(self.WifiAndMeasure)
-        self.machine.add_state(self.Phase3)
-        self.machine.add_state(self.Phase4)
-        self.machine.add_state(self.Phase5)
+        self.machine.add_state(self.ConnectAndMeasure)
+        self.machine.add_state(self.DataManipulation)
+        self.machine.add_state(self.Sending)
+        self.machine.add_state(self.SleepingDecision)
 
         # add the transitions and which events trigger it
-        self.machine.add_transition(self.BusAndTime, self.WifiAndMeasure, events=['ToWifiMeasure'])
-        self.machine.add_transition(self.WifiAndMeasure, self.Phase3, events=['ToPhase3'])
-        self.machine.add_transition(self.Phase3, self.Phase4, events=['ToPhase4'])
-        self.machine.add_transition(self.Phase4, self.Phase5, events=['ToPhase5'])
-        self.machine.add_transition(self.Phase5, self.BusAndTime, events=['ToWifiMeasure'])
+        self.machine.add_transition(self.BusAndTime, self.ConnectAndMeasure, events=['ToConnectAndMeasure'])
+        self.machine.add_transition(self.ConnectAndMeasure, self.DataManipulation, events=['ToDataManipulation'])
+        self.machine.add_transition(self.DataManipulation, self.Sending, events=['ToSending'])
+        self.machine.add_transition(self.Sending, self.SleepingDecision, events=['ToSleepingDecision'])
+        self.machine.add_transition(self.SleepingDecision, self.BusAndTime, events=['ToConnectAndMeasure'])
 
         # initialize it
         self.machine.initialize()

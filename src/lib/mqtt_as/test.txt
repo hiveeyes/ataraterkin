@@ -1,0 +1,6 @@
+from machine import unique_id
+
+from mqtt_as.mqtt_as import MQTTClient
+import settings
+client=MQTTClient(settings.networking['wifi'],settings.networking['mqtt'])
+

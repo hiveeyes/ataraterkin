@@ -69,7 +69,7 @@ networking = {
         # Enable/disable WiFi
         'enabled': True,
         'ssid': 'SSID', 
-        'password': 'PASSWORD', 
+        'wifi_pw': 'PASSWORD', 
         'timeout': 15.0,
     },
 }

@@ -1,13 +1,23 @@
-from time import sleep
+import gc
+from time import sleep, time
 import uasyncio as asyncio
 import settings
 import network
+from mqtt import atMQTTClient
 from statemachine import atStateMachine
 from pysm import Event
 from measurements import atMeasurements
 
-measurements = atMeasurements()
+gc.collect()
 
+measurements = atMeasurements() # all measurement methods
+if settings.networking['wifi']['enabled']:
+    wlan = network.WLAN(network.STA_IF) # create station interface
+    wlan.active(True)       # activate the interface
+if settings.networking['mqtt']['enabled']:
+    mqttclient = atMQTTClient(settings.networking['mqtt'])
+
+gc.collect()
 
 def BusAndTime():
     # create bus objects
@@ -23,92 +33,66 @@ def BusAndTime():
     extRTC = atRTC.extRTC
 
     # to next state
-    state.machine.dispatch(Event('ToWifiMeasure'))
+    state.machine.dispatch(Event('ToConnectAndMeasure'))
 
-async def WifiAndMeasure():
-    res = None
+async def ConnectAndMeasure():
+    '''connect to the outside and start measuring'''
     tasks = [Wan()] # for now always connect to Wifi but this is not mandatory
+    global results = []
 
-    for sensor in settings.sensors:
-        if sensor == 'DS3231':
-            measurements.IntTemperature = extRTC.getTemperature()
-            print('Internal Temperature: {}°C'.format(measurements.IntTemperature))
-
+    for sensor in settings.sensors:     # all measuring function have to be appended to tasks[] and will be executed concurrently
+        if sensor == 'DS3231' and settings.sensors[sensor]['enabled']:
+            tasks.append(measurements.getDS3231temperature(extRTC))
+        elif sensor == 'somethingelse':
+            pass
     try:
-        res = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        print('Measurement results: ',results)
     except asyncio.TimeoutError:  # These only happen if return_exceptions is False
         print('Timeout')  # With the default times, cancellation occurs first
     except asyncio.CancelledError:
         print('Cancelled') 
-    state.machine.dispatch(Event('ToPhase3'))
+    state.machine.dispatch(Event('ToDataManipulation'))
 
 async def Wan():
 
     try:
         if settings.networking['wifi']['enabled']:
-            import network
-            wlan = network.WLAN(network.STA_IF)
-            wlan.active(True)
-            if not wlan.isconnected():
-                print('connecting to network...')
-                wlan.connect(settings.networking['wifi']['ssid'], settings.networking['wifi']['password'])
-                while not wlan.isconnected():
-                    print('waiting for connection...')
+            global wlan
+            if not wlan.isconnected():      # check if the station is connected to an AP
+                wlan.connect(settings.networking['wifi']['ssid'], settings.networking['wifi']['wifi_pw']) # connect to an AP
+                print('wlan.ifconfig()')         # get the interface's IP/netmask/gw/DNS addresses
+                for _ in range(3):
+                    if not wlan.isconnected():
+                        raise OSError  # in 1st secs
                     await asyncio.sleep(1)
-            print('network config:', wlan.ifconfig())
-    except:
+                print('Wifi is reliable')
+        else:
+            print('TODO: other WAN connections...')   # TODO
+    except OSError:
         print('connection to wifi failed')
 
-async def MeasureBus0():
-    print('Measuring on Bus0')
-    await asyncio.sleep(1)
-    print('Done measuring on Bus0')
-
-async def MeasureBus1():
-    print('Measuring on Bus1')
-    await asyncio.sleep(4)
-    print('Done measuring on Bus1')
-
-async def MeasureBus2():
-    print('Measuring on Bus2')
-    await asyncio.sleep(7)
-    print('Done measuring on Bus2')
-
-def doPhase3():
+def DataManipulation():
     print('Data crunching.')
+    print results
     sleep(2)
-    state.machine.dispatch(Event('ToPhase4'))
+    state.machine.dispatch(Event('ToSending'))
 
-async def SendZeData():
-    print('Connecting to server...')
-    await asyncio.sleep(1)
-    print('Sending data...')
-    await asyncio.sleep(2)
-    print('Closing connection.')
+def Sending():
+    '''send data to Kotori'''
+    print('Connecting')
+    mqttclient.connect()
+    print('publishing')
+    mqttclient.publish('topic/time', '{}'.format(123), qos = 1)
+    print('Published data to broker')
+    mqttclient.disconnect()
 
-async def DoingDishes():
-    print('Updating web server')
-    await asyncio.sleep(2)
-    print('Do whatever')
-    await asyncio.sleep(1)
-    print('Finished the dishes.')
+    state.machine.dispatch(Event('ToSleepingDecision'))
 
-async def doPhase4():
-    print('Sending data and doing the dishes.')
-    res = None
-    tasks = [SendZeData(), DoingDishes()]
-    try:
-        res = await asyncio.gather(*tasks, return_exceptions=True)
-    except asyncio.TimeoutError:  # These only happen if return_exceptions is False
-        print('Timeout')  # With the default times, cancellation occurs first
-    except asyncio.CancelledError:
-        print('Cancelled')    
-    state.machine.dispatch(Event('ToPhase5'))
-
-def doPhase5():
+def SleepingDecision():
     print('Deciding how to sleep.')
     sleep(2)
-    state.machine.dispatch(Event('ToWifiMeasure'))
+    state.machine.dispatch(Event('ToConnectAndMeasure'))
 
 async def ataraterkin():
    # create the statemachine
@@ -119,31 +103,24 @@ async def ataraterkin():
     for machinestate in state.machine.states:
         machinestate.handlers = {'enter': state.on_enter, 'exit': state.on_exit}
 
-    #do_connect()
-
-    # create the statemachine
-    state = atStateMachine()
-
-    # Attach enter/exit handlers - if you want different handlers for a state you need to overwrite them
-    for machinestate in state.machine.states:
-        machinestate.handlers = {'enter': state.on_enter, 'exit': state.on_exit}
-
     while True:
-        if state.machine.state == None:
-            BusAndTime()
         if state.machine.state == state.BusAndTime:
             BusAndTime()
-        elif state.machine.state == state.WifiAndMeasure:
-            await WifiAndMeasure()
-        elif state.machine.state == state.Phase3:
-            doPhase3()
-        elif state.machine.state == state.Phase4:
-            asyncio.run(doPhase4())
-        elif state.machine.state == state.Phase5:
-            doPhase5()
+            gc.collect()
+        elif state.machine.state == state.ConnectAndMeasure:
+            await ConnectAndMeasure()
+            gc.collect()
+        elif state.machine.state == state.DataManipulation:
+            DataManipulation()
+            gc.collect()
+        elif state.machine.state == state.Sending:
+            Sending()
+            gc.collect()
+        elif state.machine.state == state.SleepingDecision:
+            SleepingDecision()
+            gc.collect()
 
 
 if __name__ == '__main__':
 
     asyncio.run(ataraterkin())
-
